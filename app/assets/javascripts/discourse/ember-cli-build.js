@@ -30,6 +30,51 @@ module.exports = function (defaults) {
     },
   });
 
+  // Patching a private method is not great, but there's no other way for us to tell
+  // Ember CLI that we want the tests alone in a package without helpers/fixtures, since
+  // we re-use those in the theme tests.
+  app._defaultPackager.packageApplicationTests = function (tree) {
+    let appTestTrees = []
+      .concat(
+        this.packageEmberCliInternalFiles(),
+        this.packageTestApplicationConfig(),
+        tree
+      )
+      .filter(Boolean);
+
+    appTestTrees = mergeTrees(appTestTrees, {
+      overwrite: true,
+      annotation: "TreeMerger (appTestTrees)",
+    });
+
+    let tests = concat(appTestTrees, {
+      inputFiles: [
+        "**/tests/test-boot-ember-cli.js",
+        "**/tests/acceptance/*.js",
+        "**/tests/integration/*.js",
+        "**tests/unit/*.js",
+      ],
+      headerFiles: ["vendor/ember-cli/tests-prefix.js"],
+      footerFiles: ["vendor/ember-cli/app-config.js"],
+      outputFile: this.distPaths.testJsFile,
+      annotation: "Concat: App Tests",
+      sourceMapConfig: this.sourcemaps,
+    });
+
+    let testHelpers = concat(appTestTrees, {
+      inputFiles: [
+        "**/tests/helpers/**/*.js",
+        "**/tests/fixtures/**/*.js",
+        "**/tests/setup-tests.js",
+      ],
+      outputFile: "/assets/test-helpers.js",
+      annotation: "Concat: App Test Helpers",
+      sourceMapConfig: this.sourcemaps,
+    });
+
+    return mergeTrees([tests, testHelpers]);
+  };
+
   // Ember CLI does this by default for the app tree, but for our extra bundles we
   // need to do it ourselves in production mode.
   const isProduction = EmberApp.env().includes("production");

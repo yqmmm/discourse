@@ -26,13 +26,7 @@
 //= require handlebars
 //= require ember-template-compiler
 
-// Test helpers
 //= require sinon
-//= require_tree ./helpers
 //= require break_string
-
-//= require_tree ./fixtures
-
-//= require ./setup-tests
 //= require test-shims
 //= require jquery.magnific-popup.min.js

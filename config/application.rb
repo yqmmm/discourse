@@ -369,7 +369,7 @@ module Discourse
             %w{qunit.js
               qunit.css
               test_helper.css
-              discourse/tests/test_helper.js
+              discourse/tests/test-boot-rails.js
               wizard/test/test_helper.js
             }.include?(logical_path) ||
             logical_path =~ /\/node_modules/ ||

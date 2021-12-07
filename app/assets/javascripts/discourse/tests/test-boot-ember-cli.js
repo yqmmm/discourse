@@ -28,3 +28,4 @@ document.addEventListener("discourse-booted", () => {
   loader.loadModules();
   start({ setupTestContainer: false, loadTests: false });
 });
+window.EmberENV.TESTS_FILE_LOADED = true;
