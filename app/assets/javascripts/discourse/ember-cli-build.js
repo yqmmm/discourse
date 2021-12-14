@@ -37,6 +37,19 @@ module.exports = function (defaults) {
       // We don't use SRI in Rails. Disable here to match:
       enabled: false,
     },
+
+    "ember-cli-terser": {
+      enabled: true,
+      exclude: [
+        "**/test-*.js",
+        "**/core-tests*.js",
+        "**/highlightjs/*",
+        "**/javascripts/*",
+      ],
+    },
+
+    // We need to build tests in prod for theme tests
+    tests: true,
   });
 
   // Patching a private method is not great, but there's no other way for us to tell
@@ -58,27 +71,27 @@ module.exports = function (defaults) {
 
     let tests = concat(appTestTrees, {
       inputFiles: [
-        "**/tests/test-boot-ember-cli.js",
         "**/tests/acceptance/*.js",
         "**/tests/integration/*.js",
         "**tests/unit/*.js",
       ],
       headerFiles: ["vendor/ember-cli/tests-prefix.js"],
       footerFiles: ["vendor/ember-cli/app-config.js"],
-      outputFile: this.distPaths.testJsFile,
-      annotation: "Concat: App Tests",
-      sourceMapConfig: this.sourcemaps,
+      outputFile: "/assets/core-tests.js",
+      annotation: "Concat: Core Tests",
+      sourceMapConfig: false,
     });
 
     let testHelpers = concat(appTestTrees, {
       inputFiles: [
+        "**/tests/test-boot-ember-cli.js",
         "**/tests/helpers/**/*.js",
         "**/tests/fixtures/**/*.js",
         "**/tests/setup-tests.js",
       ],
       outputFile: "/assets/test-helpers.js",
-      annotation: "Concat: App Test Helpers",
-      sourceMapConfig: this.sourcemaps,
+      annotation: "Concat: Test Helpers",
+      sourceMapConfig: false,
     });
 
     return mergeTrees([tests, testHelpers]);

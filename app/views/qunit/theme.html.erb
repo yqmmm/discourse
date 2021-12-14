@@ -6,9 +6,9 @@
     <%- if !@suggested_themes %>
       <%= discourse_stylesheet_link_tag(:desktop, theme_id: nil) %>
       <%= discourse_stylesheet_link_tag(:test_helper, theme_id: nil) %>
-      <%= preload_script "discourse/tests/test-vendor-rails" %>
+      <%= preload_script "vendor" %>
       <%= preload_script "discourse/tests/active-plugins" %>
-      <%= preload_script "discourse/tests/test-helpers-rails" %>
+      <%= preload_script "discourse/tests/test-helpers" %>
       <%= theme_translations_lookup %>
       <%= theme_js_lookup %>
       <%= theme_lookup("head_tag") %>
