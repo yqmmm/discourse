@@ -104,6 +104,11 @@ export default Component.extend(FilterModeMixin, {
     });
   },
 
+  @discourseComputed("filterType")
+  notCategories(filterType) {
+    return filterType !== "categories";
+  },
+
   actions: {
     changeCategoryNotificationLevel(notificationLevel) {
       this.category.setNotification(notificationLevel);
