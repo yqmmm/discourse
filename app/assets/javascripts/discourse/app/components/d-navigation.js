@@ -3,6 +3,7 @@ import FilterModeMixin from "discourse/mixins/filter-mode";
 import NavItem from "discourse/models/nav-item";
 import bootbox from "bootbox";
 import discourseComputed from "discourse-common/utils/decorators";
+import { getOwner } from "discourse-common/lib/get-owner";
 import { inject as service } from "@ember/service";
 
 export default Component.extend(FilterModeMixin, {
@@ -107,6 +108,12 @@ export default Component.extend(FilterModeMixin, {
   @discourseComputed("filterType")
   notCategories(filterType) {
     return filterType !== "categories";
+  },
+
+  @discourseComputed()
+  canBulk() {
+    const controller = getOwner(this).lookup("controller:discovery/topics");
+    return controller.get("canBulkSelect");
   },
 
   actions: {
