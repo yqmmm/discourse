@@ -17,6 +17,14 @@ class QunitController < ApplicationController
   def theme
     raise Discourse::NotFound.new if !can_see_theme_qunit?
 
+    @legacy_ember = Rails.env.development?
+
+    # In production mode all bundles use `application`
+    @app_bundle = "application"
+    if Rails.env.development? && !@legacy_ember
+      @app_bundle = "discourse"
+    end
+
     param_key = nil
     @suggested_themes = nil
     if (id = get_param(:id)).present?

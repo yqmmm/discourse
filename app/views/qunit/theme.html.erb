@@ -6,9 +6,13 @@
     <%- if !@suggested_themes %>
       <%= discourse_stylesheet_link_tag(:desktop, theme_id: nil) %>
       <%= discourse_stylesheet_link_tag(:test_helper, theme_id: nil) %>
+      <%= preload_script "locales/#{I18n.locale}" %>
       <%= preload_script "vendor" %>
+      <%= preload_script @app_bundle %>
+      <%= preload_script "admin" %>
       <%= preload_script "discourse/tests/active-plugins" %>
-      <%= preload_script "discourse/tests/test-helpers" %>
+      <%= preload_script "discourse/tests/test-support-rails" %>
+      <%= preload_script "discourse/tests/test-helpers-rails" %>
       <%= theme_translations_lookup %>
       <%= theme_js_lookup %>
       <%= theme_lookup("head_tag") %>
@@ -16,7 +20,7 @@
       <%= tag.meta id: 'data-discourse-setup', data: client_side_setup_data %>
       <meta property="og:title" content="">
       <meta property="og:url" content="">
-      <%= preload_script "discourse/tests/test_starter" %>
+      <meta name="discourse/config/environment" content="<%=u discourse_config_environment(testing: true) %>" />
     <%- else %>
       <style>
         html {
@@ -27,8 +31,10 @@
   </head>
   <body>
     <%- if !@suggested_themes %>
-      <div id="qunit"></div>
-      <div id="qunit-fixture"></div>
+      <%- if @legacy_ember %>
+        <div id="qunit"></div>
+        <div id="qunit-fixture"></div>
+      <%- end %>
     <%- else %>
       <h2>Theme QUnit Test Runner</h2>
       <%- if @suggested_themes.size == 0 %>
@@ -41,4 +47,12 @@
       <%- end %>
     <%- end %>
   </body>
+  <%- if !@suggested_themes %>
+    <%- if @legacy_ember %>
+      <%= preload_script "discourse/tests/test_starter" %>
+    <%- else %>
+      <%= preload_script "discourse-test-listen-boot" %>
+      <%= preload_script "discourse-boot" %>
+    <%- end %>
+  <%- end %>
 </html>
