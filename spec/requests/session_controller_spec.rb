@@ -3,6 +3,34 @@
 require 'rails_helper'
 require 'rotp'
 
+class TestSecondFactorAction < SecondFactor::Actions::Base
+  attr_reader :called_methods
+
+  def initialize(*args)
+    super
+    @called_methods = []
+  end
+
+  def no_second_factors_enabled!(params)
+    @called_methods << __method__
+  end
+
+  def second_factor_auth_required!(params)
+    @called_methods << __method__
+    {
+      redirect_path: params[:redirect_path],
+      callback_params: {
+        saved_param_1: params[:saved_param_1],
+        saved_param_2: params[:saved_param_2]
+      }
+    }
+  end
+
+  def second_factor_auth_completed!(callback_params)
+    @called_methods << __method__
+  end
+end
+
 describe SessionController do
   let(:user) { Fabricate(:user) }
   let(:email_token) { Fabricate(:email_token, user: user) }
@@ -2248,6 +2276,141 @@ describe SessionController do
         expect(json['current_user']).to be_present
         expect(json['current_user']['id']).to eq(user.id)
       end
+    end
+  end
+
+  describe '#second_factor_auth_show' do
+    let!(:user_second_factor) { Fabricate(:user_second_factor_totp, user: user) }
+
+    before do
+      sign_in(user)
+    end
+
+    it 'returns 404 if there is no challenge for the given nonce' do
+      get "/session/2fa", params: { nonce: 'asdasdsadsad' }
+      expect(response.status).to eq(404)
+    end
+
+    it 'returns 404 if the nonce does not match the challenge nonce' do
+      post "/session/2fa/test-action"
+      expect(response.status).to eq(403)
+      expect(response.parsed_body["second_factor_challenge_nonce"]).to be_present
+      get "/session/2fa.json", params: { nonce: 'fakenonce' }
+      expect(response.status).to eq(404)
+    end
+
+    it 'returns 404 if the challenge has expired' do
+      post "/session/2fa/test-action"
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+      get "/session/2fa.json", params: { nonce: nonce }
+      expect(response.status).to eq(200)
+
+      freeze_time 6.minutes.from_now
+      get "/session/2fa.json", params: { nonce: nonce }
+      expect(response.status).to eq(404)
+    end
+
+    it 'responds with challenge data' do
+      post "/session/2fa/test-action"
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+      get "/session/2fa.json", params: { nonce: nonce }
+      expect(response.status).to eq(200)
+      challenge_data = response.parsed_body
+      expect(challenge_data["totp_enabled"]).to eq(true)
+      expect(challenge_data["backup_enabled"]).to eq(false)
+      expect(challenge_data["security_keys_enabled"]).to eq(false)
+      expect(challenge_data["allowed_methods"]).to contain_exactly(
+        UserSecondFactor.methods[:totp],
+        UserSecondFactor.methods[:security_key],
+      )
+
+      Fabricate(
+        :user_security_key_with_random_credential,
+        user: user,
+        name: 'Enabled YubiKey',
+        enabled: true
+      )
+      Fabricate(:user_second_factor_backup, user: user)
+      post "/session/2fa/test-action", params: { allow_backup_codes: true }
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+      get "/session/2fa.json", params: { nonce: nonce }
+      expect(response.status).to eq(200)
+      challenge_data = response.parsed_body
+      expect(challenge_data["totp_enabled"]).to eq(true)
+      expect(challenge_data["backup_enabled"]).to eq(true)
+      expect(challenge_data["security_keys_enabled"]).to eq(true)
+      expect(challenge_data["allowed_credential_ids"]).to be_present
+      expect(challenge_data["challenge"]).to be_present
+      expect(challenge_data["allowed_methods"]).to contain_exactly(
+        UserSecondFactor.methods[:totp],
+        UserSecondFactor.methods[:security_key],
+        UserSecondFactor.methods[:backup_codes],
+      )
+    end
+  end
+
+  describe '#second_factor_auth_perform' do
+    let!(:user_second_factor) { Fabricate(:user_second_factor_totp, user: user) }
+
+    before do
+      sign_in(user)
+    end
+
+    it 'returns 403 if the 2FA method is not allowed' do
+      Fabricate(:user_second_factor_backup, user: user)
+      post "/session/2fa/test-action"
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+      post "/session/2fa.json", params: {
+        nonce: nonce,
+        second_factor_method: UserSecondFactor.methods[:backup_codes],
+        second_factor_token: "iAmValidBackupCode"
+      }
+      expect(response.status).to eq(403)
+    end
+
+    it 'returns 403 if the user disables the 2FA method in the middle of the 2FA process' do
+      post "/session/2fa/test-action"
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+      token = ROTP::TOTP.new(user_second_factor.data).now
+      user_second_factor.destroy!
+      post "/session/2fa.json", params: {
+        nonce: nonce,
+        second_factor_method: UserSecondFactor.methods[:totp],
+        second_factor_token: token
+      }
+      expect(response.status).to eq(403)
+    end
+
+    it 'completes the 2FA challenge if the TOTP token is correct' do
+      post "/session/2fa/test-action", params: { redirect_path: "/ggg" }
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+      token = ROTP::TOTP.new(user_second_factor.data).now
+      post "/session/2fa.json", params: {
+        nonce: nonce,
+        second_factor_method: UserSecondFactor.methods[:totp],
+        second_factor_token: token
+      }
+      expect(response.status).to eq(200)
+      expect(response.parsed_body["success"]).to eq(true)
+      expect(response.parsed_body["callback_method"]).to eq("POST")
+      expect(response.parsed_body["callback_path"]).to eq("/session/2fa/test-action")
+      expect(response.parsed_body["redirect_path"]).to eq("/ggg")
+
+      post "/session/2fa/test-action", params: { second_factor_nonce: nonce }
+      expect(response.status).to eq(200)
+      expect(response.parsed_body["called_methods"]).to contain_exactly("second_factor_auth_completed!")
     end
   end
 end

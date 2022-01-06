@@ -974,6 +974,7 @@ class ApplicationController < ActionController::Base
   def run_second_factor!(action_class)
     action = action_class.new(current_user, guardian)
     manager = SecondFactor::AuthManager.new(current_user, guardian, action)
+    yield(manager) if block_given?
     result = manager.run!(request, params, secure_session)
 
     if !result.no_second_factors_enabled? && !result.second_factor_auth_completed?

@@ -443,6 +443,8 @@ class SessionController < ApplicationController
       Webauthn.stage_challenge(user, secure_session)
       json.merge!(Webauthn.allowed_credentials(user, secure_session))
       json[:security_keys_enabled] = true
+    else
+      json[:security_keys_enabled] = false
     end
 
     respond_to do |format|
@@ -496,13 +498,14 @@ class SessionController < ApplicationController
   end
 
   if Rails.env.test?
+    skip_before_action :check_xhr, only: %i(test_second_factor_restricted_route)
+
     def test_second_factor_restricted_route
-      result = run_second_factor!(params[:action_class])
-      if result.no_second_factors_enabled?
-        render json: { result: 'no_second_factors_enabled' }
-      else
-        render json: { result: 'second_factor_auth_completed' }
+      result = run_second_factor!(TestSecondFactorAction) do |manager|
+        @called_methods = manager.action.called_methods
+        manager.allow_backup_codes! if params[:allow_backup_codes]
       end
+      render json: { called_methods: @called_methods }
     end
   end
 

@@ -354,7 +354,7 @@ RSpec.describe Admin::UsersController do
     end
 
     it "returns a 404 when the acting user doesn't have permission even if they have 2FA enabled" do
-      user_second_factor = Fabricate(:user_second_factor_totp, user: user)
+      Fabricate(:user_second_factor_totp, user: user)
       sign_in(user)
       put "/admin/users/#{another_user.id}/grant_admin.json"
       expect(response.status).to eq(404)
@@ -374,7 +374,7 @@ RSpec.describe Admin::UsersController do
     end
 
     it 'asks the acting admin for second factor if it is enabled' do
-      user_second_factor = Fabricate(:user_second_factor_totp, user: admin)
+      Fabricate(:user_second_factor_totp, user: admin)
 
       put "/admin/users/#{another_user.id}/grant_admin.json"
 
@@ -465,8 +465,8 @@ RSpec.describe Admin::UsersController do
     end
 
     it 'does not accept backup codes' do
-      user_second_factor = Fabricate(:user_second_factor_totp, user: admin)
-      user_second_factor = Fabricate(:user_second_factor_backup, user: admin)
+      Fabricate(:user_second_factor_totp, user: admin)
+      Fabricate(:user_second_factor_backup, user: admin)
 
       put "/admin/users/#{another_user.id}/grant_admin.json"
       nonce = response.parsed_body["second_factor_challenge_nonce"]

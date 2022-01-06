@@ -11,7 +11,7 @@ class SecondFactor::AuthManager
     end
   end
 
-  attr_reader :allowed_methods
+  attr_reader :allowed_methods, :action
 
   def initialize(current_user, guardian, action)
     @current_user = current_user
