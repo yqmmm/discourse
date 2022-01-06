@@ -974,6 +974,13 @@ class ApplicationController < ActionController::Base
   def run_second_factor!(action_class)
     action = action_class.new(current_user, guardian)
     manager = SecondFactor::AuthManager.new(current_user, guardian, action)
-    manager.run!(request, params, secure_session)
+    result = manager.run!(request, params, secure_session)
+
+    if !result.no_second_factors_enabled? && !result.second_factor_auth_completed?
+      # should never happen, but I want to know if somehow it does! (osama)
+      raise "2fa process ended up in a bad state!"
+    end
+
+    result
   end
 end

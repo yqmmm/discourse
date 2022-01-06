@@ -463,20 +463,23 @@ class SessionController < ApplicationController
     nonce = params.require(:nonce)
     challenge = find_second_factor_challenge(nonce)
     allowed_methods = challenge[:allowed_methods]
-    if !allowed_methods.include?(params[:second_factor_method].to_i)
+
+    second_factor_method = params[:second_factor_method].to_i
+    if !allowed_methods.include?(second_factor_method)
       raise Discourse::InvalidAccess.new
     end
 
-    # TODO: rate limits
+    if !current_user.valid_second_factor_method_for_user?(second_factor_method)
+      raise Discourse::InvalidAccess.new
+    end
+
     if !challenge[:successful]
+      rate_limit_second_factor!(current_user)
       second_factor_auth_result = current_user.authenticate_second_factor(params, secure_session)
       if second_factor_auth_result.ok
         challenge[:successful] = true
-        secure_session.set(
-          "current_second_factor_auth_challenge",
-          challenge.to_json,
-          expires: 5.minutes
-        )
+        challenge[:generated_at] += 1.minute.to_i
+        secure_session["current_second_factor_auth_challenge"] = challenge.to_json
       else
         return render(
           json: failed_json.merge(second_factor_auth_result.to_h),
@@ -490,6 +493,17 @@ class SessionController < ApplicationController
       callback_path: challenge[:callback_path],
       redirect_path: challenge[:redirect_path]
     }, status: 200
+  end
+
+  if Rails.env.test?
+    def test_second_factor_restricted_route
+      result = run_second_factor!(params[:action_class])
+      if result.no_second_factors_enabled?
+        render json: { result: 'no_second_factors_enabled' }
+      else
+        render json: { result: 'second_factor_auth_completed' }
+      end
+    end
   end
 
   def forgot_password
@@ -757,6 +771,11 @@ class SessionController < ApplicationController
 
     challenge = JSON.parse(challenge_json).deep_symbolize_keys
     if challenge[:nonce] != nonce
+      raise Discourse::NotFound.new
+    end
+
+    generated_at = challenge[:generated_at]
+    if generated_at < SecondFactor::AuthManager::MAX_CHALLENGE_AGE.ago.to_i
       raise Discourse::NotFound.new
     end
     challenge

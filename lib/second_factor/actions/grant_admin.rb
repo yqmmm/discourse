@@ -15,7 +15,7 @@ module SecondFactor::Actions
       }
     end
 
-    def second_factor_auth_successful!(callback_params)
+    def second_factor_auth_completed!(callback_params)
       user = find_user(callback_params[:user_id])
       user.grant_admin!
       StaffActionLogger.new(current_user).log_grant_admin(user)

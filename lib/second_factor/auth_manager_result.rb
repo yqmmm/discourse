@@ -16,7 +16,7 @@ class SecondFactor::AuthManagerResult
 
   STATUSES = StrictEnum.new({
     no_second_factor: 1,
-    second_factor_auth_successful: 2,
+    second_factor_auth_completed: 2,
   }.freeze)
 
   private_constant :StrictEnum, :STATUSES
@@ -29,7 +29,7 @@ class SecondFactor::AuthManagerResult
     @status_id == STATUSES[:no_second_factor]
   end
 
-  def second_factor_auth_successful?
-    @status_id == STATUSES[:second_factor_auth_successful]
+  def second_factor_auth_completed?
+    @status_id == STATUSES[:second_factor_auth_completed]
   end
 end

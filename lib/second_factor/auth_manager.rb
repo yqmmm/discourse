@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class SecondFactor::AuthManager
+  MAX_CHALLENGE_AGE = 5.minutes
+
   class SecondFactorRequired < StandardError
     attr_reader :nonce
 
@@ -30,8 +32,8 @@ class SecondFactor::AuthManager
       @action.no_second_factors_enabled!(params)
       create_result(:no_second_factor)
     elsif nonce = params[:second_factor_nonce].presence
-      verify_second_factor_auth(nonce, secure_session)
-      create_result(:second_factor_auth_successful)
+      verify_second_factor_auth_completed(nonce, secure_session)
+      create_result(:second_factor_auth_completed)
     else
       nonce = initiate_second_factor_auth(params, secure_session, request)
       raise SecondFactorRequired.new(nonce: nonce)
@@ -51,17 +53,14 @@ class SecondFactor::AuthManager
       callback_path: request.path,
       callback_params: callback_params,
       redirect_path: redirect_path,
-      allowed_methods: allowed_methods.to_a
+      allowed_methods: allowed_methods.to_a,
+      generated_at: Time.zone.now.to_i
     }
-    secure_session.set(
-      "current_second_factor_auth_challenge",
-      challenge.to_json,
-      expires: 5.minutes
-    )
+    secure_session["current_second_factor_auth_challenge"] = challenge.to_json
     nonce
   end
 
-  def verify_second_factor_auth(nonce, secure_session)
+  def verify_second_factor_auth_completed(nonce, secure_session)
     json = secure_session["current_second_factor_auth_challenge"]
     raise Discourse::InvalidAccess.new if json.blank?
 
@@ -72,9 +71,13 @@ class SecondFactor::AuthManager
     if !challenge[:successful]
       raise Discourse::InvalidAccess.new
     end
+    if challenge[:generated_at] < MAX_CHALLENGE_AGE.ago.to_i
+      raise Discourse::InvalidAccess.new
+    end
+
     secure_session["current_second_factor_auth_challenge"] = nil
     callback_params = challenge[:callback_params]
-    @action.second_factor_auth_successful!(callback_params)
+    @action.second_factor_auth_completed!(callback_params)
   end
 
   def add_method(id)
