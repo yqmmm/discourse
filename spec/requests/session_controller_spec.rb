@@ -3,34 +3,6 @@
 require 'rails_helper'
 require 'rotp'
 
-class TestSecondFactorAction < SecondFactor::Actions::Base
-  attr_reader :called_methods
-
-  def initialize(*args)
-    super
-    @called_methods = []
-  end
-
-  def no_second_factors_enabled!(params)
-    @called_methods << __method__
-  end
-
-  def second_factor_auth_required!(params)
-    @called_methods << __method__
-    {
-      redirect_path: params[:redirect_path],
-      callback_params: {
-        saved_param_1: params[:saved_param_1],
-        saved_param_2: params[:saved_param_2]
-      }
-    }
-  end
-
-  def second_factor_auth_completed!(callback_params)
-    @called_methods << __method__
-  end
-end
-
 describe SessionController do
   let(:user) { Fabricate(:user) }
   let(:email_token) { Fabricate(:email_token, user: user) }
@@ -2295,7 +2267,7 @@ describe SessionController do
       post "/session/2fa/test-action"
       expect(response.status).to eq(403)
       expect(response.parsed_body["second_factor_challenge_nonce"]).to be_present
-      get "/session/2fa.json", params: { nonce: 'fakenonce' }
+      get "/session/2fa.json", params: { nonce: 'wrongnonce' }
       expect(response.status).to eq(404)
     end
 
@@ -2362,6 +2334,22 @@ describe SessionController do
       sign_in(user)
     end
 
+    it 'returns 404 if the challenge has expired' do
+      post "/session/2fa/test-action"
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+
+      freeze_time 6.minutes.from_now
+      token = ROTP::TOTP.new(user_second_factor.data).now
+      post "/session/2fa.json", params: {
+        nonce: nonce,
+        second_factor_method: UserSecondFactor.methods[:totp],
+        second_factor_token: token
+      }
+      expect(response.status).to eq(404)
+    end
+
     it 'returns 403 if the 2FA method is not allowed' do
       Fabricate(:user_second_factor_backup, user: user)
       post "/session/2fa/test-action"
@@ -2391,11 +2379,15 @@ describe SessionController do
       expect(response.status).to eq(403)
     end
 
-    it 'completes the 2FA challenge if the TOTP token is correct' do
+    it 'marks the challenge as successful if the 2fa succeeds' do
       post "/session/2fa/test-action", params: { redirect_path: "/ggg" }
+      expect(TestSecondFactorAction.called_methods).to eq([
+        :second_factor_auth_required!
+      ])
       expect(response.status).to eq(403)
       nonce = response.parsed_body["second_factor_challenge_nonce"]
       expect(nonce).to be_present
+
       token = ROTP::TOTP.new(user_second_factor.data).now
       post "/session/2fa.json", params: {
         nonce: nonce,
@@ -2403,14 +2395,46 @@ describe SessionController do
         second_factor_token: token
       }
       expect(response.status).to eq(200)
-      expect(response.parsed_body["success"]).to eq(true)
+      expect(response.parsed_body["ok"]).to eq(true)
       expect(response.parsed_body["callback_method"]).to eq("POST")
       expect(response.parsed_body["callback_path"]).to eq("/session/2fa/test-action")
       expect(response.parsed_body["redirect_path"]).to eq("/ggg")
 
       post "/session/2fa/test-action", params: { second_factor_nonce: nonce }
       expect(response.status).to eq(200)
-      expect(response.parsed_body["called_methods"]).to contain_exactly("second_factor_auth_completed!")
+      expect(response.parsed_body["result"]).to eq("second_factor_auth_completed")
+      expect(TestSecondFactorAction.called_methods).to eq([
+        :second_factor_auth_required!,
+        :second_factor_auth_completed!
+      ])
+    end
+
+    it 'does not mark the challenge as successful if the 2fa fails' do
+      post "/session/2fa/test-action", params: { redirect_path: "/ggg" }
+      expect(TestSecondFactorAction.called_methods).to eq([
+        :second_factor_auth_required!
+      ])
+      expect(response.status).to eq(403)
+      nonce = response.parsed_body["second_factor_challenge_nonce"]
+      expect(nonce).to be_present
+
+      token = ROTP::TOTP.new(user_second_factor.data).now.to_i
+      token == 999999 ? token -= 1 : token += 1
+      post "/session/2fa.json", params: {
+        nonce: nonce,
+        second_factor_method: UserSecondFactor.methods[:totp],
+        second_factor_token: token.to_s
+      }
+      expect(response.status).to eq(400)
+      expect(response.parsed_body["ok"]).to eq(false)
+      expect(response.parsed_body["reason"]).to eq("invalid_second_factor")
+      expect(response.parsed_body["error"]).to eq(I18n.t("login.invalid_second_factor_code"))
+
+      post "/session/2fa/test-action", params: { second_factor_nonce: nonce }
+      expect(response.status).to eq(403)
+      expect(TestSecondFactorAction.called_methods).to eq([
+        :second_factor_auth_required!
+      ])
     end
   end
 end

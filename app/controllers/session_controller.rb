@@ -483,14 +483,16 @@ class SessionController < ApplicationController
         challenge[:generated_at] += 1.minute.to_i
         secure_session["current_second_factor_auth_challenge"] = challenge.to_json
       else
-        return render(
-          json: failed_json.merge(second_factor_auth_result.to_h),
-          status: 400
-        )
+        error_json = second_factor_auth_result
+          .to_h
+          .deep_symbolize_keys
+          .slice(:ok, :error, :reason, :failed)
+          .merge(failed_json)
+        return render(json: error_json, status: 400)
       end
     end
     render json: {
-      success: true,
+      ok: true,
       callback_method: challenge[:callback_method],
       callback_path: challenge[:callback_path],
       redirect_path: challenge[:redirect_path]
@@ -502,10 +504,13 @@ class SessionController < ApplicationController
 
     def test_second_factor_restricted_route
       result = run_second_factor!(TestSecondFactorAction) do |manager|
-        @called_methods = manager.action.called_methods
         manager.allow_backup_codes! if params[:allow_backup_codes]
       end
-      render json: { called_methods: @called_methods }
+      if result.no_second_factors_enabled?
+        render json: { result: 'no_second_factors_enabled' }
+      else
+        render json: { result: 'second_factor_auth_completed' }
+      end
     end
   end
 
