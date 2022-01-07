@@ -62,6 +62,7 @@ class SecondFactor::AuthManager
 
   def verify_second_factor_auth_completed(nonce, secure_session)
     json = secure_session["current_second_factor_auth_challenge"]
+    # TODO error message
     raise Discourse::InvalidAccess.new if json.blank?
 
     challenge = JSON.parse(json).deep_symbolize_keys
@@ -69,9 +70,11 @@ class SecondFactor::AuthManager
       raise Discourse::InvalidAccess.new
     end
     if !challenge[:successful]
+      # TODO error message
       raise Discourse::InvalidAccess.new
     end
     if challenge[:generated_at] < MAX_CHALLENGE_AGE.ago.to_i
+      # TODO error message
       raise Discourse::InvalidAccess.new
     end
 

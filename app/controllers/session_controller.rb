@@ -8,7 +8,18 @@ class SessionController < ApplicationController
 
   skip_before_action :check_xhr, only: %i(second_factor_auth_show)
 
+  class SecondFactorChallengeError < StandardError
+    attr_reader :error_translation_key
+
+    def initialize(error_translation_key)
+      @error_translation_key = error_translation_key
+    end
+  end
+
   ACTIVATE_USER_KEY = "activate_user"
+
+  rescue_from SecondFactorChallengeError do |e|
+  end
 
   def csrf
     render json: { csrf: form_authenticity_token }
@@ -470,7 +481,6 @@ class SessionController < ApplicationController
     if !allowed_methods.include?(second_factor_method)
       raise Discourse::InvalidAccess.new
     end
-
     if !current_user.valid_second_factor_method_for_user?(second_factor_method)
       raise Discourse::InvalidAccess.new
     end
@@ -775,7 +785,8 @@ class SessionController < ApplicationController
 
   def find_second_factor_challenge(nonce)
     challenge_json = secure_session["current_second_factor_auth_challenge"]
-    raise Discourse::NotFound.new if challenge_json.blank?
+    # TODO error message
+    raise SecondFactorChallengeError.new if challenge_json.blank?
 
     challenge = JSON.parse(challenge_json).deep_symbolize_keys
     if challenge[:nonce] != nonce
@@ -784,7 +795,8 @@ class SessionController < ApplicationController
 
     generated_at = challenge[:generated_at]
     if generated_at < SecondFactor::AuthManager::MAX_CHALLENGE_AGE.ago.to_i
-      raise Discourse::NotFound.new
+      # TODO error message
+      raise SecondFactorChallengeError.new
     end
     challenge
   end
