@@ -2570,7 +2570,8 @@ en:
       backup_code: "Use a backup code instead"
 
   second_factor_auth:
-    sasas
+    challenge_not_found: "Couldn't find a 2FA challenge in your current session."
+    challenge_expired: "Too much time has passed since the 2FA challenge was staged and it's no longer valid. Please try again."
   admin:
     email:
       sent_test: "sent!"

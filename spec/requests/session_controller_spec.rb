@@ -2259,8 +2259,9 @@ describe SessionController do
     end
 
     it 'returns 404 if there is no challenge for the given nonce' do
-      get "/session/2fa", params: { nonce: 'asdasdsadsad' }
+      get "/session/2fa.json", params: { nonce: 'asdasdsadsad' }
       expect(response.status).to eq(404)
+      expect(response.parsed_body["error"]).to eq(I18n.t("second_factor_auth.challenge_not_found"))
     end
 
     it 'returns 404 if the nonce does not match the challenge nonce' do
@@ -2269,6 +2270,7 @@ describe SessionController do
       expect(response.parsed_body["second_factor_challenge_nonce"]).to be_present
       get "/session/2fa.json", params: { nonce: 'wrongnonce' }
       expect(response.status).to eq(404)
+      expect(response.parsed_body["error"]).to eq(I18n.t("second_factor_auth.challenge_not_found"))
     end
 
     it 'returns 404 if the challenge has expired' do
@@ -2282,6 +2284,7 @@ describe SessionController do
       freeze_time 6.minutes.from_now
       get "/session/2fa.json", params: { nonce: nonce }
       expect(response.status).to eq(404)
+      expect(response.parsed_body["error"]).to eq(I18n.t("second_factor_auth.challenge_expired"))
     end
 
     it 'responds with challenge data' do
@@ -2348,6 +2351,7 @@ describe SessionController do
         second_factor_token: token
       }
       expect(response.status).to eq(404)
+      expect(response.parsed_body["error"]).to eq(I18n.t("second_factor_auth.challenge_expired"))
     end
 
     it 'returns 403 if the 2FA method is not allowed' do

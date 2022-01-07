@@ -18,9 +18,6 @@ class SessionController < ApplicationController
 
   ACTIVATE_USER_KEY = "activate_user"
 
-  rescue_from SecondFactorChallengeError do |e|
-  end
-
   def csrf
     render json: { csrf: form_authenticity_token }
   end
@@ -442,20 +439,30 @@ class SessionController < ApplicationController
     raise Discourse::NotFound if !user
 
     nonce = params.require(:nonce)
-    challenge = find_second_factor_challenge(nonce)
+    challenge = nil
+    error_key = nil
+    begin
+      challenge = find_second_factor_challenge(nonce)
+    rescue SecondFactorChallengeError => exception
+      error_key = exception.error_translation_key
+    end
 
-    json = {
-      totp_enabled: user.totp_enabled?,
-      backup_enabled: user.backup_codes_enabled?,
-      allowed_methods: challenge[:allowed_methods]
-    }
-
-    if user.security_keys_enabled?
-      Webauthn.stage_challenge(user, secure_session)
-      json.merge!(Webauthn.allowed_credentials(user, secure_session))
-      json[:security_keys_enabled] = true
+    json = {}
+    if challenge
+      json.merge!(
+        totp_enabled: user.totp_enabled?,
+        backup_enabled: user.backup_codes_enabled?,
+        allowed_methods: challenge[:allowed_methods]
+      )
+      if user.security_keys_enabled?
+        Webauthn.stage_challenge(user, secure_session)
+        json.merge!(Webauthn.allowed_credentials(user, secure_session))
+        json[:security_keys_enabled] = true
+      else
+        json[:security_keys_enabled] = false
+      end
     else
-      json[:security_keys_enabled] = false
+      json[:error] = I18n.t(error_key)
     end
 
     respond_to do |format|
@@ -465,7 +472,7 @@ class SessionController < ApplicationController
       end
 
       format.json do
-        render json: json
+        render json: json, status: error_key ? 404 : 200
       end
     end
   end
@@ -474,14 +481,37 @@ class SessionController < ApplicationController
     raise Discourse::NotFound if !current_user
 
     nonce = params.require(:nonce)
-    challenge = find_second_factor_challenge(nonce)
-    allowed_methods = challenge[:allowed_methods]
+    challenge = nil
+    error_key = nil
+    begin
+      challenge = find_second_factor_challenge(nonce)
+    rescue SecondFactorChallengeError => exception
+      error_key = exception.error_translation_key
+    end
 
+    if error_key
+      json = failed_json.merge(
+        ok: false,
+        error: I18n.t(error_key),
+        reason: "challenge_not_found_or_expired"
+      )
+      render json: failed_json.merge(json), status: 404
+      return
+    end
+
+    # no proper error messages for these cases because the only way they can
+    # happen is if someone is messing with us.
+    # the first one can only happen if someone disables a 2FA method after
+    # they're redirected to the 2fa page and then uses the same method they've
+    # disabled.
     second_factor_method = params[:second_factor_method].to_i
-    if !allowed_methods.include?(second_factor_method)
+    if !current_user.valid_second_factor_method_for_user?(second_factor_method)
       raise Discourse::InvalidAccess.new
     end
-    if !current_user.valid_second_factor_method_for_user?(second_factor_method)
+    # and this happens if someone tries to use a 2FA method that's not accepted
+    # for the action they're trying to perform. e.g. using backup codes to
+    # grant someone admin status.
+    if !challenge[:allowed_methods].include?(second_factor_method)
       raise Discourse::InvalidAccess.new
     end
 
@@ -496,9 +526,10 @@ class SessionController < ApplicationController
         error_json = second_factor_auth_result
           .to_h
           .deep_symbolize_keys
-          .slice(:ok, :error, :reason, :failed)
+          .slice(:ok, :error, :reason)
           .merge(failed_json)
-        return render(json: error_json, status: 400)
+        render json: error_json, status: 400
+        return
       end
     end
     render json: {
@@ -785,18 +816,18 @@ class SessionController < ApplicationController
 
   def find_second_factor_challenge(nonce)
     challenge_json = secure_session["current_second_factor_auth_challenge"]
-    # TODO error message
-    raise SecondFactorChallengeError.new if challenge_json.blank?
+    if challenge_json.blank?
+      raise SecondFactorChallengeError.new("second_factor_auth.challenge_not_found")
+    end
 
     challenge = JSON.parse(challenge_json).deep_symbolize_keys
     if challenge[:nonce] != nonce
-      raise Discourse::NotFound.new
+      raise SecondFactorChallengeError.new("second_factor_auth.challenge_not_found")
     end
 
     generated_at = challenge[:generated_at]
     if generated_at < SecondFactor::AuthManager::MAX_CHALLENGE_AGE.ago.to_i
-      # TODO error message
-      raise SecondFactorChallengeError.new
+      raise SecondFactorChallengeError.new("second_factor_auth.challenge_expired")
     end
     challenge
   end
