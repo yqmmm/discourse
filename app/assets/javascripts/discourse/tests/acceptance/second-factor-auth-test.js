@@ -247,7 +247,6 @@ acceptance("Second Factor Auth Page", function (needs) {
       "invalid token man",
       "error message from the server is displayed"
     );
-    // await pauseTest();
   });
 
   test("successful 2FA form submit", async function (assert) {
