@@ -177,19 +177,12 @@ export default Controller.extend({
         this.displaySuccess(
           I18n.t("second_factor_auth.redirect_after_success")
         );
-        if (
-          response.success &&
-          response.callback_method &&
-          response.callback_path &&
-          response.redirect_path
-        ) {
-          ajax(response.callback_path, {
-            type: response.callback_method,
-            data: { second_factor_nonce: this.nonce },
-          })
-            .then(() => DiscourseURL.routeTo(response.redirect_path))
-            .catch((error) => this.displayError(extractError(error)));
-        }
+        ajax(response.callback_path, {
+          type: response.callback_method,
+          data: { second_factor_nonce: this.nonce },
+        })
+          .then(() => DiscourseURL.routeTo(response.redirect_path))
+          .catch((error) => this.displayError(extractError(error)));
       })
       .catch((error) => {
         this.displayError(extractError(error));
