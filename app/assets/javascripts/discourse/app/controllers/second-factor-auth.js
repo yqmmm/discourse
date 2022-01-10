@@ -18,6 +18,7 @@ export default Controller.extend({
   queryParams: ["nonce"],
 
   message: null,
+  loadError: false,
   messageIsError: false,
   secondFactorToken: null,
   userSelectedMethod: null,
@@ -30,6 +31,15 @@ export default Controller.extend({
   showTotpForm: equal("shownSecondFactorMethod", TOTP),
   showSecurityKeyForm: equal("shownSecondFactorMethod", SECURITY_KEY),
   showBackupCodesForm: equal("shownSecondFactorMethod", BACKUP_CODE),
+
+  @discourseComputed("messageIsError")
+  alertClass(messageIsError) {
+    if (messageIsError) {
+      return "alert-error";
+    } else {
+      return "alert-success";
+    }
+  },
 
   @discourseComputed("allowedMethods.[]", "totpEnabled")
   totpAvailable() {
@@ -141,6 +151,7 @@ export default Controller.extend({
     this.set("messageIsError", false);
     this.set("secondFactorToken", null);
     this.set("userSelectedMethod", null);
+    this.set("loadError", false);
   },
 
   displayError(message) {
