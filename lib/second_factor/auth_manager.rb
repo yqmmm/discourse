@@ -62,20 +62,33 @@ class SecondFactor::AuthManager
 
   def verify_second_factor_auth_completed(nonce, secure_session)
     json = secure_session["current_second_factor_auth_challenge"]
-    # TODO error message
-    raise Discourse::InvalidAccess.new if json.blank?
+    if json.blank?
+      raise SecondFactor::BadChallenge.new(
+        "second_factor_auth.challenge_not_found",
+        status_code: 404,
+      )
+    end
 
     challenge = JSON.parse(json).deep_symbolize_keys
     if challenge[:nonce] != nonce
-      raise Discourse::InvalidAccess.new
+      raise SecondFactor::BadChallenge.new(
+        "second_factor_auth.challenge_not_found",
+        status_code: 404,
+      )
     end
+
     if !challenge[:successful]
-      # TODO error message
-      raise Discourse::InvalidAccess.new
+      raise SecondFactor::BadChallenge.new(
+        "second_factor_auth.challenge_not_completed",
+        status_code: 401
+      )
     end
+
     if challenge[:generated_at] < MAX_CHALLENGE_AGE.ago.to_i
-      # TODO error message
-      raise Discourse::InvalidAccess.new
+      raise SecondFactor::BadChallenge.new(
+        "second_factor_auth.challenge_expired",
+        status_code: 401
+      )
     end
 
     secure_session["current_second_factor_auth_challenge"] = nil

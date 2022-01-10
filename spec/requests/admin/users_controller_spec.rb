@@ -397,7 +397,7 @@ RSpec.describe Admin::UsersController do
       }
       res = response.parsed_body
       expect(response.status).to eq(200)
-      expect(res["success"]).to eq(true)
+      expect(res["ok"]).to eq(true)
       expect(res["callback_method"]).to eq("PUT")
       expect(res["callback_path"]).to eq("/admin/users/#{another_user.id}/grant_admin.json")
       expect(res["redirect_path"]).to eq("/admin/users/#{another_user.id}/#{another_user.username}")
@@ -431,7 +431,7 @@ RSpec.describe Admin::UsersController do
       put "/admin/users/#{another_user.id}/grant_admin.json", params: {
         second_factor_nonce: nonce
       }
-      expect(response.status).to eq(403)
+      expect(response.status).to eq(401)
       expect(another_user.reload.admin).to eq(false)
     end
 
@@ -450,7 +450,7 @@ RSpec.describe Admin::UsersController do
       }
       res = response.parsed_body
       expect(response.status).to eq(200)
-      expect(res["success"]).to eq(true)
+      expect(res["ok"]).to eq(true)
       expect(res["callback_method"]).to eq("PUT")
       expect(res["callback_path"]).to eq("/admin/users/#{another_user.id}/grant_admin.json")
       expect(res["redirect_path"]).to eq("/admin/users/#{another_user.id}/#{another_user.username}")

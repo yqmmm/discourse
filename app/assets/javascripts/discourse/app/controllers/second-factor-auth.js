@@ -32,15 +32,6 @@ export default Controller.extend({
   showSecurityKeyForm: equal("shownSecondFactorMethod", SECURITY_KEY),
   showBackupCodesForm: equal("shownSecondFactorMethod", BACKUP_CODE),
 
-  @discourseComputed("messageIsError")
-  alertClass(messageIsError) {
-    if (messageIsError) {
-      return "alert-error";
-    } else {
-      return "alert-success";
-    }
-  },
-
   @discourseComputed("allowedMethods.[]", "totpEnabled")
   totpAvailable() {
     return this.totpEnabled && this.allowedMethods.includes(TOTP);
@@ -102,6 +93,7 @@ export default Controller.extend({
       alts.push({
         id: SECURITY_KEY,
         translationKey: "login.second_factor_toggle.security_key",
+        class: "security-key",
       });
     }
 
@@ -109,6 +101,7 @@ export default Controller.extend({
       alts.push({
         id: TOTP,
         translationKey: "login.second_factor_toggle.totp",
+        class: "totp",
       });
     }
 
@@ -116,6 +109,7 @@ export default Controller.extend({
       alts.push({
         id: BACKUP_CODE,
         translationKey: "login.second_factor_toggle.backup_code",
+        class: "backup-code",
       });
     }
 
@@ -143,6 +137,24 @@ export default Controller.extend({
         return I18n.t("login.security_key_description");
       case BACKUP_CODE:
         return I18n.t("login.second_factor_backup_description");
+    }
+  },
+
+  @discourseComputed("messageIsError")
+  alertClass(messageIsError) {
+    if (messageIsError) {
+      return "alert-error";
+    } else {
+      return "alert-success";
+    }
+  },
+
+  @discourseComputed("showTotpForm", "showBackupCodesForm")
+  inputFormClass(showTotpForm, showBackupCodesForm) {
+    if (showTotpForm) {
+      return "totp-token";
+    } else if (showBackupCodesForm) {
+      return "backup-code-token";
     }
   },
 

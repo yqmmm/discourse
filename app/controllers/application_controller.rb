@@ -253,6 +253,10 @@ class ApplicationController < ActionController::Base
     }, status: 403
   end
 
+  rescue_from SecondFactor::BadChallenge do |e|
+    render json: { error: I18n.t(e.error_translation_key) }, status: e.status_code
+  end
+
   def redirect_with_client_support(url, options)
     if request.xhr?
       response.headers['Discourse-Xhr-Redirect'] = 'true'

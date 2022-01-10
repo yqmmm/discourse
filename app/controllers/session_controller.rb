@@ -8,14 +8,6 @@ class SessionController < ApplicationController
 
   skip_before_action :check_xhr, only: %i(second_factor_auth_show)
 
-  class SecondFactorChallengeError < StandardError
-    attr_reader :error_translation_key
-
-    def initialize(error_translation_key)
-      @error_translation_key = error_translation_key
-    end
-  end
-
   ACTIVATE_USER_KEY = "activate_user"
 
   def csrf
@@ -441,10 +433,12 @@ class SessionController < ApplicationController
     nonce = params.require(:nonce)
     challenge = nil
     error_key = nil
+    status_code = 200
     begin
       challenge = find_second_factor_challenge(nonce)
-    rescue SecondFactorChallengeError => exception
+    rescue SecondFactor::BadChallenge => exception
       error_key = exception.error_translation_key
+      status_code = exception.status_code
     end
 
     json = {}
@@ -472,7 +466,7 @@ class SessionController < ApplicationController
       end
 
       format.json do
-        render json: json, status: error_key ? 404 : 200
+        render json: json, status: status_code
       end
     end
   end
@@ -483,10 +477,12 @@ class SessionController < ApplicationController
     nonce = params.require(:nonce)
     challenge = nil
     error_key = nil
+    status_code = 200
     begin
       challenge = find_second_factor_challenge(nonce)
-    rescue SecondFactorChallengeError => exception
+    rescue SecondFactor::BadChallenge => exception
       error_key = exception.error_translation_key
+      status_code = exception.status_code
     end
 
     if error_key
@@ -495,7 +491,7 @@ class SessionController < ApplicationController
         error: I18n.t(error_key),
         reason: "challenge_not_found_or_expired"
       )
-      render json: failed_json.merge(json), status: 404
+      render json: failed_json.merge(json), status: status_code
       return
     end
 
@@ -817,17 +813,26 @@ class SessionController < ApplicationController
   def find_second_factor_challenge(nonce)
     challenge_json = secure_session["current_second_factor_auth_challenge"]
     if challenge_json.blank?
-      raise SecondFactorChallengeError.new("second_factor_auth.challenge_not_found")
+      raise SecondFactor::BadChallenge.new(
+        "second_factor_auth.challenge_not_found",
+        status_code: 404
+      )
     end
 
     challenge = JSON.parse(challenge_json).deep_symbolize_keys
     if challenge[:nonce] != nonce
-      raise SecondFactorChallengeError.new("second_factor_auth.challenge_not_found")
+      raise SecondFactor::BadChallenge.new(
+        "second_factor_auth.challenge_not_found",
+        status_code: 404
+      )
     end
 
     generated_at = challenge[:generated_at]
     if generated_at < SecondFactor::AuthManager::MAX_CHALLENGE_AGE.ago.to_i
-      raise SecondFactorChallengeError.new("second_factor_auth.challenge_expired")
+      raise SecondFactor::BadChallenge.new(
+        "second_factor_auth.challenge_expired",
+        status_code: 401
+      )
     end
     challenge
   end

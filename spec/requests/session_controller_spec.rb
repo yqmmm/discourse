@@ -2273,7 +2273,7 @@ describe SessionController do
       expect(response.parsed_body["error"]).to eq(I18n.t("second_factor_auth.challenge_not_found"))
     end
 
-    it 'returns 404 if the challenge has expired' do
+    it 'returns 401 if the challenge has expired' do
       post "/session/2fa/test-action"
       expect(response.status).to eq(403)
       nonce = response.parsed_body["second_factor_challenge_nonce"]
@@ -2283,7 +2283,7 @@ describe SessionController do
 
       freeze_time 6.minutes.from_now
       get "/session/2fa.json", params: { nonce: nonce }
-      expect(response.status).to eq(404)
+      expect(response.status).to eq(401)
       expect(response.parsed_body["error"]).to eq(I18n.t("second_factor_auth.challenge_expired"))
     end
 
@@ -2337,7 +2337,7 @@ describe SessionController do
       sign_in(user)
     end
 
-    it 'returns 404 if the challenge has expired' do
+    it 'returns 401 if the challenge has expired' do
       post "/session/2fa/test-action"
       expect(response.status).to eq(403)
       nonce = response.parsed_body["second_factor_challenge_nonce"]
@@ -2350,7 +2350,7 @@ describe SessionController do
         second_factor_method: UserSecondFactor.methods[:totp],
         second_factor_token: token
       }
-      expect(response.status).to eq(404)
+      expect(response.status).to eq(401)
       expect(response.parsed_body["error"]).to eq(I18n.t("second_factor_auth.challenge_expired"))
     end
 
@@ -2423,7 +2423,7 @@ describe SessionController do
       expect(nonce).to be_present
 
       token = ROTP::TOTP.new(user_second_factor.data).now.to_i
-      token == 999999 ? token -= 1 : token += 1
+      token += token == 999999 ? -1 : 1
       post "/session/2fa.json", params: {
         nonce: nonce,
         second_factor_method: UserSecondFactor.methods[:totp],
@@ -2435,7 +2435,7 @@ describe SessionController do
       expect(response.parsed_body["error"]).to eq(I18n.t("login.invalid_second_factor_code"))
 
       post "/session/2fa/test-action", params: { second_factor_nonce: nonce }
-      expect(response.status).to eq(403)
+      expect(response.status).to eq(401)
       expect(TestSecondFactorAction.called_methods).to eq([
         :second_factor_auth_required!
       ])
