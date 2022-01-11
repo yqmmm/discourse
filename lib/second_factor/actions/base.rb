@@ -18,7 +18,7 @@ module SecondFactor::Actions
       raise NotImplementedError.new
     end
 
-    def second_factor_auth_successful!(callback_params)
+    def second_factor_auth_completed!(callback_params)
       raise NotImplementedError.new
     end
   end
