@@ -49,7 +49,7 @@ class SecondFactor::AuthManager
     redirect_path = config[:redirect_path] || GlobalPath.path("/")
     challenge = {
       nonce: nonce,
-      callback_method: request.method,
+      callback_method: request.request_method,
       callback_path: request.path,
       callback_params: callback_params,
       redirect_path: redirect_path,
