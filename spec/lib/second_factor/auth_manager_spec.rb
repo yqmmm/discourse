@@ -52,10 +52,12 @@ describe SecondFactor::AuthManager do
   describe '#run!' do
     context 'when the user does not have a suitable 2FA method' do
       it 'calls the no_second_factors_enabled! method of the action' do
-        request = create_request
         action = create_action
         manager = create_manager(action)
-        manager.run!(request, {}, {})
+        params = {}
+        secure_session = {}
+        manager.run!(create_request, params, secure_session)
+        pp action.called_methods
       end
     end
   end
