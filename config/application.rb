@@ -115,6 +115,11 @@ module Discourse
         'scheduled' => 'Jobs',
         'version' => 'Discourse',
         'csrf_token_verifier' => 'CSRFTokenVerifier',
+        'html' => 'HTML',
+        'google_oauth2_authenticator' => 'GoogleOAuth2Authenticator',
+        'oauth2_authenticator' => 'OAuth2Authenticator',
+        'omniauth_strategies' => 'OmniAuthStrategies',
+        'json' => 'JSON',
       )
     end
 
@@ -126,13 +131,20 @@ module Discourse
     config.autoload_once_paths << "#{root}/lib/i18n"
     config.autoload_once_paths << "#{root}/lib/validators"
     config.autoload_once_paths << "#{root}/lib/svg_sprite"
+    config.autoload_once_paths << "#{root}/lib/guardian"
 
     Rails.autoloaders.main.ignore("app/models/reports",
                                   "app/views",
                                   "app/assets")
     Rails.autoloaders.once.ignore("lib/freedom_patches",
                                   "lib/tasks",
-                                  "lib/discourse_cookie_store.rb")
+                                  "lib/generators",
+                                  "lib/discourse_cookie_store.rb",
+                                  "lib/plugin_initialization_guard.rb",
+                                  "lib/unicorn_logstash_patch.rb",
+                                  "lib/custom_setting_providers.rb",
+                                  "lib/onebox/sanitize_config.rb"
+                                 )
 
     def watchable_args
       files, dirs = super
