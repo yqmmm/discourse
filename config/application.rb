@@ -117,17 +117,22 @@ module Discourse
         'csrf_token_verifier' => 'CSRFTokenVerifier',
       )
     end
-    Rails.autoloaders.main.ignore("app/models/reports")
-    Rails.autoloaders.once.ignore("lib/freedom_patches",
-                                  "lib/discourse_cookie_store.rb")
 
     # Custom directories with classes and modules you want to be autoloadable.
+    config.autoload_paths << "#{root}/app"
     config.autoload_once_paths << "#{root}/lib"
     config.autoload_once_paths << "#{root}/lib/common_passwords"
     config.autoload_once_paths << "#{root}/lib/highlight_js"
     config.autoload_once_paths << "#{root}/lib/i18n"
     config.autoload_once_paths << "#{root}/lib/validators"
     config.autoload_once_paths << "#{root}/lib/svg_sprite"
+
+    Rails.autoloaders.main.ignore("app/models/reports",
+                                  "app/views",
+                                  "app/assets")
+    Rails.autoloaders.once.ignore("lib/freedom_patches",
+                                  "lib/tasks",
+                                  "lib/discourse_cookie_store.rb")
 
     def watchable_args
       files, dirs = super
