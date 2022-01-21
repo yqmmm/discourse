@@ -3469,7 +3469,7 @@ zh_CN:
       no_drafts_title: "您还没有写过任何草稿"
       no_drafts_body: "还没准备好发布？每当您开始撰写主题、回复或个人消息时，我们都会自动保存新草稿并在此处列出。选择取消按钮放弃或保存您的草稿以供稍后继续。"
       no_likes_title: "您还没有赞任何话题"
-      no_likes_body: "加入并开始贡献的一个好方法是阅读已有的对话，并在您喜欢的帖子上点击 %{heartIcon}"
+      no_likes_body: "加入并开始贡献的一个好方法是阅读已有的主题，并在您喜欢的帖子上点击 %{heartIcon}"
       no_likes_others: "没有赞过的帖子。"
       no_topics_title: "您还没有开始任何话题"
       no_read_topics_title: "您还没有阅读任何话题。"
