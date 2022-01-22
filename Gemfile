@@ -263,3 +263,5 @@ gem 'colored2', require: false
 gem 'maxminddb'
 
 gem 'rails_failover', require: false
+
+gem 'railyzer-logger', :git => 'https://github.com/yqmmm/railyzer-logger.git', branch: 'main'
