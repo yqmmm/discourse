@@ -5,6 +5,13 @@ GIT
     mail (2.8.0.edge)
       mini_mime (>= 0.1.1)
 
+GIT
+  remote: https://github.com/yqmmm/railyzer-logger.git
+  revision: d83d8d8c08f6a4faebc5b401d6eed9920fcb1658
+  branch: main
+  specs:
+    railyzer-logger (0.1.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -577,6 +584,7 @@ DEPENDENCIES
   rails_failover
   rails_multisite
   railties (= 6.1.4.1)
+  railyzer-logger!
   rake
   rb-fsevent
   rbtrace
