@@ -7,7 +7,7 @@ GIT
 
 GIT
   remote: https://github.com/yqmmm/railyzer-logger.git
-  revision: d83d8d8c08f6a4faebc5b401d6eed9920fcb1658
+  revision: 1ea5f5ff01bb0e716311e294d8b3626b511716ec
   branch: main
   specs:
     railyzer-logger (0.1.0)

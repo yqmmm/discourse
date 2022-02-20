@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# Setup:
+# https://meta.discourse.org/t/beginners-guide-to-install-discourse-for-development-using-docker/102009
+#
+# Attention:
+# We only need to run tests that use *controller*s. Otherwise, tests may
+# use control path that is not available in real world:
+# 1. ./spec/requests
+
+shopt -s nullglob
+# set -e
+
+# Remove old logs
+rm -f *.logs
+
+SPEC_DIR='./spec/requests'
+
+for spec_file in $(find $SPEC_DIR -name '*_spec.rb'); do
+  # Preserve directory structure in the output.
+  base=$(basename $spec_file '.rb')
+  dest_file="./logs/$(dirname $spec_file)/$(basename $spec_file .rb).logs"
+  dest_dir=$(dirname $dest_file)
+  mkdir -p $dest_dir
+  echo "$spec_file -> $dest_file"
+
+  d/bundle exec rspec $spec_file
+  mv railyzer*.logs $dest_file
+done
+
+# The output is in logs/ directory.

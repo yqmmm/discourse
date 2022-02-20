@@ -108,4 +108,13 @@ class MiniSqlMultisiteConnection < MiniSql::Postgres::Connection
     end
   end
 
+  def exec(sql, *params)
+    cleaner = RailyzerLogger::BackTraceCleaner.new
+    cleaned_trace = cleaner.clean(caller).join(", ")
+
+    RailyzerLogger::SqlSource.register_sql "\##{cleaned_trace}"
+    RailyzerLogger::SqlSource.register_sql sql + " || " + params.to_s
+    super
+  end
+
 end

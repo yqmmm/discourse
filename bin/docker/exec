@@ -1,4 +1,3 @@
-#!/bin/bash
 
 exec docker exec \
   -it \
@@ -9,5 +8,6 @@ exec docker exec \
   -e RAILS_ENV \
   -e NO_EMBER_CLI \
   -e QUNIT_RAILS_ENV \
+  -e RAILYZER_LOGGER_ROOT=/src/ \
   discourse_dev \
   "$@"
